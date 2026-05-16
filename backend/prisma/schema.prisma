@@ -1,0 +1,128 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Role{
+
+ADMIN 
+STAFF
+}
+
+enum MovementType{
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  RETURN
+}
+
+enum ProductStatus{
+  ACTIVE
+  INACTIVE
+}
+
+model User{
+  id         Int      @id @default(autoincrement())
+  email      String   @unique
+  password   String
+  name       String   
+  role       Role     @default(STAFF)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+
+  StockMovements StockMovement[]
+
+}
+
+model Category{
+  id          Int      @id @default(autoincrement())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+
+  products    Product[]
+
+}
+
+
+model Supplier{
+  id            Int      @id @default(autoincrement())
+  name          String   @unique
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  products      Product[]
+
+}
+
+
+model Product{
+  id           Int       @id @default(autoincrement())
+  SKU          String    @unique
+  name         String
+  description  String    
+  currentStock Int       @default(0)
+  minimumStock Int       @default(0)
+  unitPrice    Float     @default(0)
+  sellingPrice Float     @default(0)
+  status       ProductStatus @default(ACTIVE)
+
+  categoryId   Int
+  supplierId   Int?
+
+  
+  category     Category   @relation(fields: [categoryId], references: [id], onDelete:Restrict)  
+  supplier     Supplier?   @relation(fields: [supplierId], references:[id], onDelete:SetNull)
+
+  stockMovements  StockMovement[]
+
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+
+}
+
+
+model StockMovement {
+
+id             Int       @id @default(autoincrement())
+productId      Int       
+movementType   MovementType
+quantity       Int
+previousStock  Int
+newStock       Int
+reason         String?
+reference      String?
+userId         Int
+createdAt      DateTime  @default(now())
+
+
+product        Product   @relation(fields:[productId], references:[id], onDelete:Restrict)
+
+user           User      @relation(fields:[userId], references:[id], onDelete:Restrict)
+
+@@index([productId])
+@@index([userId])
+@@index([createdAt])
+
+
+}
