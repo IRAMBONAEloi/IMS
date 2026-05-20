@@ -1,5 +1,6 @@
 import type{Request, Response} from 'express';
 import {prisma} from '../index.js';
+import { createProductSchema , updateProductSchema} from '../utils/validation.js';
 
 export class ProductController{
    // get all pdoducts
@@ -96,6 +97,15 @@ async create(req: Request , res:Response){
 
     try{
 
+        const validation = createProductSchema.safeParse(req.body);
+
+        if(!validation.success){
+            return res.status(400).json({
+                success:false,
+                errors:validation.error
+            });
+        }
+
         const{ SKU, name, description, categoryId, supplierId, unitPrice, sellingPrice, minimumuStock} = req.body;
 
         const existingProduct = await prisma.product.findUnique({
@@ -146,24 +156,34 @@ async update (req: Request , res: Response){
             return res.status(400).json({message:'Invalid product ID'});
         
     }
-   console.log('Request body:', req.body);  // ← ADD THIS
+
+    const validation = updateProductSchema.safeParse(req.body);
+
+    if(!validation.success){
+        return res.status(400).json({
+            success:false,
+            errors:validation.error
+        });
+    }
     const {SKU, name, description, categoryId, supplierId, unitPrice, sellingPrice, minimumStock,status} = req.body;
+
+
+    const updateData: any = {};
+
+    if (SKU !== undefined) updateData.SKU = SKU;
+    if(name !== undefined) updateData.name = name;
+    if(description !== undefined) updateData.decription = description;
+    if(categoryId !== undefined) updateData.categoryId = categoryId;
+    if(supplierId !== undefined) updateData.supplierId = supplierId === null ? null:supplierId;
+    if(unitPrice !== undefined) updateData.unitPrice = unitPrice;
+    if(sellingPrice !== undefined) updateData.sellingPrice = sellingPrice;
+    if(minimumStock !== undefined) updateData.minimumStock = minimumStock;
+    if(status !== undefined) updateData.status = status;
 
   console.log('Creating product with SKU:', SKU);
     const product = await prisma.product.update({
         where: {id},
-        data:{
-            SKU,
-            name,
-            description,
-            categoryId,
-            supplierId: supplierId || null,
-            unitPrice,
-            sellingPrice,
-            minimumStock,
-            status
-        },
-
+        data:updateData,
         include:{
             category:true,
             supplier:true
