@@ -1,5 +1,6 @@
 import type {Request ,Response} from 'express';
 import {prisma} from '../index.js';
+import {createSupplierSchema, updateSupplierSchema} from '../utils/validation.js';
 
 
 export class SupplierController{
@@ -56,12 +57,18 @@ async getOne(req:Request, res:Response){
 async create(req:Request , res:Response){
 
     try{
-        const {name, contactPerson, phone, email, address} = req.body;
 
-        if (!name){
-            return res.status(404).json({message:'Supplier name is required'});
+
+        const validation = createSupplierSchema.safeParse(req.body);
+
+        if (!validation.success){
+            return res.status(400).json({
+                success:false,
+                errors:validation.error
+            });
         }
-
+        const {name, contactPerson, phone, email, address} = req.body;
+        
         const supplier = await prisma.supplier.create({
             data:{name, contactPerson, phone, email, address}
         });
@@ -83,11 +90,29 @@ async update(req:Request, res:Response){
             return res.status(404).json({message:'Invalid supplier ID'});
         }
 
+        const validation = updateSupplierSchema.safeParse(req.body);
+
+        if(!validation.success ){
+
+            return res.status(400).json({
+                success:false,
+                errors:validation.error
+            })
+        }
+
         const {name, contactPerson, phone, email, address} = req.body;
+
+        const updateData: any = {};
+
+        if(name !== undefined) updateData.name = name;
+        if(contactPerson !== undefined) updateData.contactPerson = contactPerson;
+        if(phone !== undefined) updateData.phone = phone;
+        if(email !== undefined) updateData.phone = email;
+        if(address !== undefined) updateData.address = address;
 
         const supplier = await prisma.supplier.update({
             where : {id},
-            data: {name, contactPerson, phone, email, address}
+            data: updateData
         });
 
         res.json({success:true, data:supplier});

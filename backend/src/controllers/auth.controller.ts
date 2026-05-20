@@ -2,13 +2,26 @@ import type {Request , Response} from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import {prisma} from '../index.js';
+import { registerSchema, loginSchema} from '../utils/validation.js'
 
 
 export class AuthController {
     async login (req: Request, res: Response) {
         try{
+
+            const validation = loginSchema.safeParse(req.body);
+
+            if(!validation.success){
+                return res.status(400).json({
+
+                    success: false,
+                    error: validation.error
+                });
+            }
+
+
              console.log('Full request body:', req.body);
-            const {email, password} = req.body;
+            const {email, password} = validation.data;
             const user = await prisma.user.findUnique({where: {email}
             
             });
@@ -51,8 +64,22 @@ export class AuthController {
 
     async register (req: Request, res: Response) {
         try{
+
+            const validation = registerSchema.safeParse(req.body);
+
+            if(!validation.success){
+                return res.status(400).json({
+                    success:false,
+                    error:validation.error
+                });
+            }
+
+
+
+
+
             console.log('Register request body:', req.body);
-            const {name, email, password} = req.body;
+            const {name, email, password} = validation.data;
             const existingUser = await prisma.user.findUnique({where: {email}});
 
             if (existingUser){

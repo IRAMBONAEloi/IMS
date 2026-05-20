@@ -1,5 +1,6 @@
 import  type{Request, Response} from 'express';
 import {prisma} from '../index.js';
+import { createStockMovementSchema } from '../utils/validation.js';
 
 
 
@@ -12,10 +13,20 @@ export class StockMovementController{
 
         try{
 
-            const {productId, movementType, quantity, reason, reference}= req.body;
+
+            const validation = createStockMovementSchema.safeParse(req.body);
+            if(!validation.success){
+                return res.status(400).json({
+                    success:false,
+                    errors:validation.error
+                });
+            }
+
+
+            const {productId, movementType, quantity, reason, reference}= validation.data;
             const userId = (req as any).user?.id;
             if(!userId){
-                return res.status(401).json({message:'Missisng required fields '});
+                return res.status(401).json({message:'User not authenticated '});
             }
 
             if (quantity <= 0){
@@ -80,8 +91,8 @@ export class StockMovementController{
                         quantity,
                         previousStock,
                         newStock,
-                        reason,
-                        reference,
+                        ...(reason && {reason}),
+                        ...(reference && {reference}),
                         userId
                         },
 
