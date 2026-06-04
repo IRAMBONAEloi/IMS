@@ -122,14 +122,14 @@ export class ProductController {
                     SKU,
                     name,
                     description: `${description ?? ''}`,
-                    imageUrl,
-                    categoryId,
+                    imageUrl: imageUrl ?? undefined,
+                    categoryId: categoryId,
                     supplierId: supplierId || null,
                     unitPrice,
                     sellingPrice,
                     minimumStock: minimumStock || 0,
                     currentStock: 0
-                },
+                } as any,
                 include: {
                     category: true,
                     supplier: true
