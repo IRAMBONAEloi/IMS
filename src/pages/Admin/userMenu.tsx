@@ -34,7 +34,7 @@ export default function Users() {
     });
     const [error, setError] = useState('');
     const user = authService.getUser();
-    const isAdmin = user?.role === 'ADMIN';
+ 
 
     // Toast state
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);

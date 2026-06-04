@@ -461,8 +461,8 @@ import { authService } from '../../services/auth.service';
 import { 
     LayoutDashboard, Package, Tags, Truck, RefreshCw, 
     BarChart3, Users, Search, ChevronLeft, ChevronRight, 
-    TrendingUp, TrendingDown, AlertCircle, CheckCircle, 
-    DollarSign, Box, Layers, ShoppingBag, Star, Eye, ArrowRight
+    TrendingUp, AlertCircle, CheckCircle, 
+    DollarSign, Box, Layers, ShoppingBag,ArrowRight
 } from 'lucide-react';
 
 interface DashboardData {
