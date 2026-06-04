@@ -1,13 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { 
-  Package, 
-  RefreshCw, 
+import {  
   Tags, 
-  Truck, 
-  BarChart3, 
-  Users, 
-  LogOut,
   Search,
   Plus,
   Edit,
@@ -149,7 +143,7 @@ export default function Categories() {
         const actionText = newStatus === 'ACTIVE' ? 'activated' : 'deactivated';
 
         try {
-           const response = await api.put(`/categories/${selectedCategory.id}`, { status: newStatus,
+           await api.put(`/categories/${selectedCategory.id}`, { status: newStatus,
               name:selectedCategory.name,
               description: selectedCategory.description || ''
              });
@@ -480,7 +474,7 @@ export default function Categories() {
                 ) : (
                     <div className="space-y-4">
                         {sortedCategories.map(category => {
-                            const hasProducts = category.productCount && category.productCount > 0;
+                            const hasProducts = !!(category.productCount && category.productCount > 0);
                             const isActive = category.status === 'ACTIVE';
                             
                             return (
