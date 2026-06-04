@@ -5,8 +5,8 @@ import { authService } from '../../services/auth.service';
 import { 
     LayoutDashboard, Package, Tags, Truck, RefreshCw, 
     BarChart3, Users as UsersIcon, Search, ChevronLeft, ChevronRight,
-    UserPlus, Trash2, Shield, User, Mail, Calendar,
-    X, Check, MoreVertical
+    UserPlus, Trash2,Mail, Calendar,
+    X, Check,
 } from 'lucide-react';
 
 interface User {
