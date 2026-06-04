@@ -460,9 +460,8 @@ import api from '../../services/api';
 import { authService } from '../../services/auth.service';
 import { 
     LayoutDashboard, Package, Tags, Truck, RefreshCw, 
-    BarChart3, Users, Search, ChevronLeft, ChevronRight, 
-    TrendingUp, TrendingDown, AlertCircle, CheckCircle, 
-    DollarSign, Box, Layers, ShoppingBag, Star, Eye, ArrowRight
+    BarChart3, Users, Search, ChevronLeft, ChevronRight, AlertCircle, CheckCircle, 
+    DollarSign, Box, Layers, ShoppingBag,ArrowRight
 } from 'lucide-react';
 
 interface DashboardData {

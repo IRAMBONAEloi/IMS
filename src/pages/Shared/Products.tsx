@@ -103,9 +103,9 @@ export default function Products() {
         ? [
             { name: 'Products', path: '/products', icon:<PackageIcon size={18} /> },
             { name: 'Stock Movements', path: '/stock-movements', icon:<RefreshCw size={18} /> },
-            { name: 'Suppliers', path: '/suppliers', },
-            { name: 'Categories', path: '/categories',  },
-            { name: 'Reports', path: '/reports'},
+            { name: 'Suppliers', path: '/suppliers', icon:<Truck size={18}/> },
+            { name: 'Categories', path: '/categories', icon:<Tags size={18}/>  },
+            { name: 'Reports', path: '/reports',icon:<BarChart3 size={18}/>},
         ]
         : [
             { name: 'Products', path: '/products', icon: <PackageIcon size={18} /> },
