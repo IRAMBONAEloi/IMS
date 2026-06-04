@@ -53,7 +53,8 @@ const totalStockValue = allProducts.reduce(
         orderBy: {createdAt:'desc'} ,
         include:{
             product :{
-                select:{name:true,SKU:true}
+                select:{name:true,SKU:true, imageUrl:true}
+                
 
             },
 
@@ -62,7 +63,8 @@ const totalStockValue = allProducts.reduce(
 
     });
 
-
+    const baseUrl = process.env.BASE_URL || 'http://localhost:5000';
+    const recentMovementsWithImageUrl = recentMovements.map(movement => ({ ...movement, product: {...movement.product, imageUrl: movement.product.imageUrl ? `${baseUrl}/${movement.product.imageUrl}` : null}}));
 
     res.json({
 
@@ -76,7 +78,9 @@ const totalStockValue = allProducts.reduce(
             totalStockValue,
             lowStockProducts,
             outofStockProducts,
-            recentMovements
+            recentMovements:recentMovementsWithImageUrl
+
+        
         }
     });
 

@@ -56,11 +56,12 @@ export const createProductSchema = z.object({
     SKU: z.string().min(2, 'SKU is required'),
     name: z.string().min(1, 'Product name is required '),
     description: z.string().optional(),
-    categoryId: z.number().int().positive('Valid category ID is required'),
-    supplierId: z.number().int().optional().optional().nullable(),
-    unitPrice: z.number().positive('Unit price must be positive'),
-    sellingPrice : z.number().positive('Selling price must be positive'),
-    minimumStock: z.number().int().min(0, 'Minimum stock can not be negative').optional().default(0),
+    categoryId: z.coerce.number().optional(),
+    supplierId: z.coerce.number().int().optional().optional().nullable(),
+    unitPrice: z.coerce.number().positive('Unit price must be positive'),
+    sellingPrice : z.coerce.number().positive('Selling price must be positive'),
+    minimumStock: z.coerce.number().int().min(0, 'Minimum stock can not be negative').optional().default(0),
+    currentStock:z.coerce.number().min(0).optional(),
 
 
 });
@@ -70,11 +71,12 @@ export const updateProductSchema = z.object({
     SKU: z.string().min(2, 'Sku is required'),
     name: z.string().min(1).optional(),
     description: z.string().optional(),
-    categoryId: z.number().int().positive().optional(),
-    supplierId: z.number().int().positive().optional().nullable(),
-    unitPrice : z.number().positive().optional(),
-    sellingPrice: z.number().positive().optional(),
-    minimumStock: z.number().int().min(0).optional(),
+    categoryId: z.coerce.number().int().positive().optional(),
+    supplierId: z.coerce.number().int().positive().optional().nullable(),
+    unitPrice : z.coerce.number().positive().optional(),
+    sellingPrice: z.coerce.number().positive().optional(),
+    minimumStock: z.coerce.number().int().min(0).optional(),
+    currentStock: z.coerce.number().min(0).optional(),
     status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
 
 });

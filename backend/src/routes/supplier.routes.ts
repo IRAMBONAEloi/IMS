@@ -1,6 +1,7 @@
 import {Router } from 'express';
 import { SupplierController } from '../controllers/supplier.controller.js';
 
+
 const router = Router();
 const supplierControllerInstance = new SupplierController();
 

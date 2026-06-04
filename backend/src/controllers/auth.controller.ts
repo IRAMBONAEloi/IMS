@@ -27,7 +27,7 @@ export class AuthController {
             });
             
             if (!user){
-                return res.status (404).json({message:'Invalid credentials'});
+                return res.status (401).json({success:false, message:'Invalid Credentials'});
 
             }
 
@@ -35,7 +35,7 @@ export class AuthController {
 
 
             if (!isValidPassword){
-                return res.status(404).json({message:'Invalid credentials' });
+                return res.status(401).json({success: false, message:'Invalid Password' });
             }
 
 
@@ -44,6 +44,7 @@ export class AuthController {
             );
 
             res.json({
+                success:true,
                 message:'Login successful',
                 token,
                 user: {
@@ -103,6 +104,7 @@ export class AuthController {
                 process.env.JWT_SECRET as string, {expiresIn:'7d'}
             );
             res.status(201).json({
+                success:true,
                 message:'Registration successful',
                 token,
                 user: {

@@ -79,7 +79,8 @@ model Product{
   id           Int       @id @default(autoincrement())
   SKU          String    @unique
   name         String
-  description  String    
+  description  String
+  imageUrl     String?   
   currentStock Int       @default(0)
   minimumStock Int       @default(0)
   unitPrice    Float     @default(0)
