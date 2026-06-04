@@ -121,7 +121,7 @@ export class ProductController {
                 data: {
                     SKU,
                     name,
-                    description: description?? undefined,
+                    description: description as String,
                     imageUrl,
                     categoryId,
                     supplierId: supplierId || null,
