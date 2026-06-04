@@ -1,12 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { 
-  Package, 
-  RefreshCw, 
-  Tags, 
-  Truck, 
-  BarChart3, 
-  Users, 
+  Package,  
   LogOut,
   Search,
   AlertTriangle,

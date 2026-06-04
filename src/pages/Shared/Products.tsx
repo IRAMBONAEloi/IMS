@@ -4,7 +4,7 @@ import api from '../../services/api';
 import { authService } from '../../services/auth.service';
 import AddProductModal from '../../components/AddProductModal';
 import EditProductModal from '../../components/EditProductModal';
-import { Package, Search, Grid3x3, List, Plus, LogOut, User, LayoutDashboard, Package as PackageIcon, Tags, Truck, RefreshCw, BarChart3, Users } from 'lucide-react';
+import { Package, Search, Grid3x3, List, Plus, LogOut, User,  Package as PackageIcon, Tags, Truck, RefreshCw, BarChart3,  } from 'lucide-react';
 
 interface Product {
     id: number;
@@ -101,8 +101,8 @@ export default function Products() {
 
     const menuItems = isAdmin 
         ? [
-            { name: 'Products', path: '/products', },
-            { name: 'Stock Movements', path: '/stock-movements', },
+            { name: 'Products', path: '/products', icon:<PackageIcon size={18} /> },
+            { name: 'Stock Movements', path: '/stock-movements', icon:<RefreshCw size={18} /> },
             { name: 'Suppliers', path: '/suppliers', },
             { name: 'Categories', path: '/categories',  },
             { name: 'Reports', path: '/reports'},
