@@ -115,7 +115,7 @@ export class ProductController {
             // Get image URL if uploaded
             const imageUrl = (req as any).file?.filename 
                 ? `/uploads/${(req as any).file.filename}` 
-                : null;
+                : undefined;
 
             const product = await prisma.product.create({
                 data: {
