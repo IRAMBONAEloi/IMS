@@ -1,0 +1,144 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum MovementType {
+  STOCK_IN
+  STOCK_OUT
+  ADJUSTMENT
+  RETURN
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Shop {
+  id        Int      @id @default(autoincrement())
+  name      String
+  slug      String   @unique
+  currency  String   @default("RWF")
+  timezone  String   @default("Africa/Kigali")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users          User[]
+  categories     Category[]
+  suppliers      Supplier[]
+  products       Product[]
+  stockMovements StockMovement[]
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  name      String
+  role      Role     @default(STAFF)
+  shopId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  shop           Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  stockMovements StockMovement[]
+
+  @@unique([id, shopId])
+  @@index([shopId, role])
+}
+
+model Category {
+  id          Int      @id @default(autoincrement())
+  name        String
+  description String?
+  shopId      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products Product[] @relation("ProductCategory")
+
+  @@unique([id, shopId])
+  @@unique([shopId, name])
+  @@index([shopId])
+}
+
+model Supplier {
+  id            Int      @id @default(autoincrement())
+  name          String
+  contactPerson String?
+  phone         String?
+  email         String?
+  address       String?
+  shopId        Int
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  shop     Shop      @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  products Product[] @relation("ProductSupplier")
+
+  @@unique([id, shopId])
+  @@unique([shopId, name])
+  @@index([shopId])
+}
+
+model Product {
+  id           Int           @id @default(autoincrement())
+  SKU          String
+  name         String
+  description  String
+  imageUrl     String?
+  currentStock Int           @default(0)
+  minimumStock Int           @default(0)
+  unitPrice    Float         @default(0)
+  sellingPrice Float         @default(0)
+  status       ProductStatus @default(ACTIVE)
+  categoryId   Int
+  supplierId   Int?
+  shopId       Int
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  shop           Shop            @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  category       Category        @relation("ProductCategory", fields: [categoryId, shopId], references: [id, shopId], onDelete: Restrict)
+  supplier       Supplier?       @relation("ProductSupplier", fields: [supplierId, shopId], references: [id, shopId], onDelete: Restrict)
+  stockMovements StockMovement[]
+
+  @@unique([id, shopId])
+  @@unique([shopId, SKU])
+  @@index([shopId, status])
+  @@index([shopId, categoryId])
+  @@index([shopId, supplierId])
+}
+
+model StockMovement {
+  id            Int          @id @default(autoincrement())
+  productId     Int
+  movementType  MovementType
+  quantity      Int
+  previousStock Int
+  newStock      Int
+  reason        String?
+  reference     String?
+  userId        Int
+  shopId        Int
+  createdAt     DateTime     @default(now())
+
+  shop    Shop    @relation(fields: [shopId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId, shopId], references: [id, shopId], onDelete: Restrict)
+  user    User    @relation(fields: [userId, shopId], references: [id, shopId], onDelete: Restrict)
+
+  @@index([shopId, productId])
+  @@index([shopId, createdAt])
+  @@index([shopId, userId])
+}
