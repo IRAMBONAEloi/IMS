@@ -1,53 +1,86 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
-import type { ReactNode } from 'react';
-import { AuthProvider } from './services/auth-context';
-import { useAuth } from './services/auth-context-value';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import Login from './pages/Shared/Login';
-import Dashboard from './pages/Admin/Dashboard';
+import AdminDashboard from './pages/Admin/Dashboard';
+import AdminCategories from './pages/Admin/Categories';
+import AdminSuppliers from './pages/Admin/Suppliers';
+import AdminReports from './pages/Admin/reports';
+import StaffDashboard from './pages/Staff/StaffDashboard';
 import Products from './pages/Shared/Products';
 import StockMovements from './pages/Shared/StockMovements';
-import CatalogPage from './pages/Shared/CatalogPage';
-import Reports from './pages/Admin/reports';
+import { authService } from './services/auth.service';
 import Users from './pages/Admin/users';
 
-function PrivateRoute({ children, adminOnly = false }: { children: ReactNode; adminOnly?: boolean }) {
-  const { user, loading } = useAuth();
-  if (loading) return <main className="ims-auth-loading" role="status">Opening your workspace…</main>;
-  if (!user) return <Navigate to="/login" replace />;
-  if (adminOnly && user.role !== 'ADMIN') return <Navigate to="/dashboard" replace />;
-  return children;
+function PrivateRoute({ children, adminOnly = false }: { children: React.ReactNode; adminOnly?: boolean }) {
+    const token = localStorage.getItem('token');
+    const user = authService.getUser();
+    
+    if (!token) return <Navigate to="/login" />;
+    if (adminOnly && user?.role !== 'ADMIN') return <Navigate to="/staff-dashboard" />;
+    
+    return children;
 }
 
-function HomeRedirect() {
-  const { user, loading } = useAuth();
-  if (loading) return <Login />;
-  return <Navigate to={user ? '/dashboard' : '/login'} replace />;
+function App() {
+    const user = authService.getUser();
+    const isAdmin = user?.role === 'ADMIN';
+
+    return (
+        <BrowserRouter>
+            <Routes>
+                <Route path="/login" element={<Login />} />
+                
+                {/* Admin Routes */}
+                <Route path="/dashboard" element={
+                    <PrivateRoute adminOnly>
+                        <AdminDashboard />
+                    </PrivateRoute>
+                } />
+                <Route path="/categories" element={
+                    <PrivateRoute adminOnly>
+                        <AdminCategories />
+                    </PrivateRoute>
+                } />
+                <Route path="/suppliers" element={
+                    <PrivateRoute adminOnly>
+                        <AdminSuppliers />
+                    </PrivateRoute>
+                } />
+                <Route path="/reports" element={
+                    <PrivateRoute adminOnly>
+                        <AdminReports />
+                    </PrivateRoute>
+                } />
+
+
+                <Route path="/users" element={   
+                    <PrivateRoute adminOnly>
+                        <Users />
+                    </PrivateRoute>
+                } />
+                
+                {/* Staff Routes */}
+                <Route path="/staff-dashboard" element={
+                    <PrivateRoute>
+                        <StaffDashboard />
+                    </PrivateRoute>
+                } />
+                
+                {/* Shared Routes */}
+                <Route path="/products" element={
+                    <PrivateRoute>
+                        <Products />
+                    </PrivateRoute>
+                } />
+                <Route path="/stock-movements" element={
+                    <PrivateRoute>
+                        <StockMovements />
+                    </PrivateRoute>
+                } />
+                
+                <Route path="/" element={<Navigate to={isAdmin ? '/dashboard' : '/staff-dashboard'} />} />
+            </Routes>
+        </BrowserRouter>
+    );
 }
 
-function AppRoutes() {
-  return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/register" element={<Login />} />
-      <Route path="/" element={<HomeRedirect />} />
-      <Route path="/dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/staff-dashboard" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-      <Route path="/products" element={<PrivateRoute><Products /></PrivateRoute>} />
-      <Route path="/products/:id/edit" element={<PrivateRoute><Products /></PrivateRoute>} />
-      <Route path="/stock-movements" element={<PrivateRoute><StockMovements /></PrivateRoute>} />
-      <Route path="/categories" element={<PrivateRoute adminOnly><CatalogPage kind="categories" /></PrivateRoute>} />
-      <Route path="/suppliers" element={<PrivateRoute adminOnly><CatalogPage kind="suppliers" /></PrivateRoute>} />
-      <Route path="/reports" element={<PrivateRoute adminOnly><Reports /></PrivateRoute>} />
-      <Route path="/users" element={<PrivateRoute adminOnly><Users /></PrivateRoute>} />
-      <Route path="*" element={<HomeRedirect />} />
-    </Routes>
-  );
-}
-
-export default function App() {
-  return (
-    <BrowserRouter>
-      <AuthProvider><AppRoutes /></AuthProvider>
-    </BrowserRouter>
-  );
-}
+export default App;

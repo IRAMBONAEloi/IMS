@@ -1,24 +1,26 @@
 import axios from 'axios';
 
 const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
-  timeout: 12000,
+    baseURL: 'https://ims-a15g.onrender.com/api',
+    headers: {
+        'Content-Type': 'application/json',
+    },
 });
 
-api.interceptors.response.use(
-  (response) => response,
-  (error) => {
-    const requestUrl = String(error.config?.url ?? '');
-    if (error.response?.status === 401 && !requestUrl.startsWith('/auth/')) {
-      sessionStorage.removeItem('ims-user');
-      localStorage.removeItem('token');
-      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
-        window.location.assign('/login');
-      }
+// Add token to every request
+api.interceptors.request.use(
+    (config) => {
+        const token = localStorage.getItem('token');
+        console.log('Token from localStorage:', token);
+        if (token) {
+            config.headers.Authorization = `Bearer ${token}`;
+             console.log('Authorization header set:', config.headers.Authorization);
+        }
+        return config;
+    },
+    (error) => {
+        return Promise.reject(error);
     }
-    return Promise.reject(error);
-  },
 );
 
 export default api;
