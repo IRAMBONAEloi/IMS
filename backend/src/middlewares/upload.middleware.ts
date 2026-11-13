@@ -1,42 +1,36 @@
-import multer from 'multer';
-import path from 'path';
-import { fileURLToPath } from 'url';
-import fs from 'fs';
+import multer, { type FileFilterCallback } from 'multer';
+import path from 'node:path';
+import { mkdirSync } from 'node:fs';
+import { randomUUID } from 'node:crypto';
+import type { Request } from 'express';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-// This resolves to backend/uploads regardless of where the middleware file is
-const uploadDir = path.join(__dirname, '../uploads');
-
-// Create the folder if it doesn't exist
-if (!fs.existsSync(uploadDir)) {
-    fs.mkdirSync(uploadDir, { recursive: true });
-}
-
-console.log('Upload directory:', uploadDir); // ← temporary, remove after confirming
-
-const storage = multer.diskStorage({
-    destination: (req, file, cb) => {
-        cb(null, uploadDir);
-    },
-    filename: (req, file, cb) => {
-        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
-    }
-});
-
-const fileFilter = (req: any, file: any, cb: any) => {
-    const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp','image/avif', 'image/x-avif'];
-    if (allowedTypes.includes(file.mimetype)) {
-        cb(null, true);
-    } else {
-        cb(new Error('Only JPEG, PNG, JPG, AVIF , X-AVIF and WEBP images are allowed'), false);
-    }
+const extensionsByMimeType: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+  'image/avif': '.avif',
 };
 
-export const upload = multer({
-    storage,
-    fileFilter,
-    limits: { fileSize: 5 * 1024 * 1024 }
+export function getUploadDirectory() {
+  const directory = process.env.UPLOAD_DIR || path.join(process.cwd(), 'src', 'uploads');
+  mkdirSync(directory, { recursive: true });
+  return directory;
+}
+
+const storage = multer.diskStorage({
+  destination: (_request, _file, callback) => callback(null, getUploadDirectory()),
+  filename: (_request, file, callback) => {
+    callback(null, `${randomUUID()}${extensionsByMimeType[file.mimetype] ?? '.bin'}`);
+  },
 });
+
+const fileFilter = (_request: Request, file: Express.Multer.File, callback: FileFilterCallback) => {
+  if (extensionsByMimeType[file.mimetype]) {
+    callback(null, true);
+    return;
+  }
+
+  callback(new Error('Only JPEG, PNG, WEBP, and AVIF images are allowed.'));
+};
+
+export const upload = multer({ storage, fileFilter, limits: { fileSize: 5 * 1024 * 1024 } });

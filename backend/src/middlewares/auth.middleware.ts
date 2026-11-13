@@ -1,46 +1,55 @@
-import type {Request , Response, NextFunction} from 'express';
-import jwt from 'jsonwebtoken';
+import type { NextFunction, Request, Response } from 'express';
+import jwt, { type JwtPayload } from 'jsonwebtoken';
+import { prisma } from '../db.js';
 
-export interface authRequest extends Request{
-    user?:{
-        id: number;
-        email: string;
-        role: string;
-    };
+export interface SessionUser {
+  id: number;
+  email: string;
+  role: 'ADMIN' | 'STAFF';
+  shopId: number;
 }
 
+declare module 'express-serve-static-core' {
+  interface Request {
+    user?: SessionUser;
+  }
+}
 
-export const authenticateToken = (req: authRequest , res:Response, next: NextFunction) =>{
+export const authenticateToken = async (req: Request, res: Response, next: NextFunction) => {
+  const cookieToken = req.cookies?.ims_session as string | undefined;
+  const authorization = req.get('authorization');
+  const legacyToken = authorization?.match(/^Bearer\s+(.+)$/i)?.[1];
+  const token = cookieToken ?? legacyToken;
 
-    const authHeader = req.headers['authorization'];
-    const token  =  authHeader && authHeader.split(' ')[1];
+  if (!token) return res.status(401).json({ message: 'Authentication required' });
 
-    if (!token){
+  const secret = process.env.JWT_SECRET;
+  if (!secret) return res.status(503).json({ message: 'Authentication is not configured' });
 
-        return res.status(401).json({message: 'Access token required'});
+  try {
+    const decoded = jwt.verify(token, secret) as JwtPayload & Partial<SessionUser>;
+    if (!Number.isInteger(decoded.id) || !Number.isInteger(decoded.shopId)) {
+      return res.status(401).json({ message: 'Invalid session' });
     }
 
-    try{
+    const account = await prisma.user.findFirst({
+      where: { id: decoded.id, shopId: decoded.shopId },
+      select: { id: true, email: true, role: true, shopId: true },
+    });
+    if (!account) return res.status(401).json({ message: 'Session is no longer valid' });
 
-        const decoded = jwt.verify(token, process.env.JWT_SECRET as string) as {
-            id: number;
-            email: string;
-            role: string;
-        };
-
-        req.user =decoded;
-        next();
-
-    } catch (error){
-        return res.status(403).json({message: 'Invalid or expired token'});
+    req.user = account;
+    return next();
+  } catch (error) {
+    if (error instanceof jwt.JsonWebTokenError || error instanceof jwt.TokenExpiredError) {
+      return res.status(401).json({ message: 'Session expired or invalid' });
     }
+    console.error('Session verification failed:', error instanceof Error ? error.message : 'Unknown error');
+    return res.status(503).json({ message: 'Authentication is temporarily unavailable' });
+  }
 };
 
-
-export const requireAdmin = (req: authRequest, res: Response, next: NextFunction)=>{
-
-    if (req.user?.role !== 'ADMIN'){
-        return res.status(403).json({message: 'Admin access required'});
-    }
-    next();
+export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
+  if (req.user?.role !== 'ADMIN') return res.status(403).json({ message: 'Admin access required' });
+  return next();
 };

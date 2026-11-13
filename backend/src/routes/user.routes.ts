@@ -3,10 +3,11 @@ import { UserController } from '../controllers/user.controller.js';
 import { authenticateToken, requireAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
-const userController = new UserController();
+const controller = new UserController();
 
-router.get('/', authenticateToken, requireAdmin, userController.getAll);
-router.post('/', authenticateToken, requireAdmin, userController.create);
-router.delete('/:id', authenticateToken, requireAdmin, userController.delete);
+router.use(authenticateToken, requireAdmin);
+router.get('/', controller.getAll);
+router.post('/', controller.create);
+router.delete('/:id', controller.delete);
 
 export default router;

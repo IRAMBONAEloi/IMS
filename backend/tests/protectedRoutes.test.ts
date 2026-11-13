@@ -1,32 +1,19 @@
-import {describe, it, expect} from 'vitest';
+import { describe, expect, it } from 'vitest';
 import request from 'supertest';
-import {app} from '../src/index';
+import { app } from '../src/index.js';
 
-
-describe ('Protect Routes - Authentication Required', async ()=>{
-
-
-const unprotectedRoutes = [
-    {method: 'get', url: '/api/categories', expectedStatus: 200},
-    {method: 'get', url: '/api/suppliers', expectedStatus: 200},
-    {method: 'get', url: '/api/products', expectedStatus: 200},
-];
-
-const protectedRoutes = [
-    {method: 'post', url: '/api/categories', expectedStatus: 400},
-    {method: 'post', url: '/api/suppliers', expectedStatus: 400},
-    {method: 'post', url: '/api/products', expectedStatus: 400},
-    {method: 'post', url: '/api/stock-movements', expectedStatus: 401},
-    {method: 'get',  url: '/api/dashboard', expectedStatus: 401},
-];
-    
-
-   [...unprotectedRoutes, ...protectedRoutes].forEach(({method, url, expectedStatus})=>{
-
-        it(`should reject ${method.toUpperCase()} ${url} without token`, async ()=>{
-
-            const response = await (request(app) as any ) [method](url);
-            expect(response.status).toBe(expectedStatus);
-        });
-    });
+describe('protected API routes', () => {
+  it.each([
+    ['GET', '/api/products'],
+    ['GET', '/api/categories'],
+    ['GET', '/api/suppliers'],
+    ['GET', '/api/stock-movements'],
+    ['GET', '/api/dashboard'],
+    ['GET', '/api/reports/low-stock'],
+    ['GET', '/api/users'],
+    ['POST', '/api/products'],
+  ] as const)('%s %s requires an authenticated session', async (method, path) => {
+    const response = await request(app)[method === 'GET' ? 'get' : 'post'](path).send({});
+    expect(response.status).toBe(401);
+  });
 });

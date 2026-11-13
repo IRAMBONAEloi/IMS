@@ -1,93 +1,74 @@
 import { z } from 'zod';
 
+const emailSchema = z.string().trim().email('Enter a valid email address').max(254).transform((value) => value.toLowerCase());
+const passwordSchema = z.string().min(8, 'Password must be at least 8 characters').max(128)
+  .regex(/[A-Z]/, 'Include an uppercase letter')
+  .regex(/[0-9]/, 'Include a number')
+  .regex(/[!@#$%&?]/, 'Include a special character');
+
 export const registerSchema = z.object({
-
-email: z.string().email('Invalid email format'),
-    password: z.string().min(8, 'Password must be atleast 8 characters')
-    .regex(/[A-Z]/, 'Must contain uppercase letter')
-    .regex(/[0-9]/, 'Must contain number')
-    .regex(/[!@#$%&?]/, 'Must contain special character'),
-    name:z.string().min(2 , 'Must be atleast 2 characters'),
-
-}) ;
+  email: emailSchema,
+  password: passwordSchema,
+  name: z.string().trim().min(2).max(80),
+  shopName: z.string().trim().min(2).max(100),
+});
 
 export const loginSchema = z.object({
-
-    email:z.string().email('Invalid email format'),
-    password:z.string().min(1,'Password required'),
+  email: emailSchema,
+  password: z.string().min(1).max(128),
 });
 
 export const createCategorySchema = z.object({
-
-    name: z.string().min(1, 'Category name is required'),
-    description: z.string ().optional(),
-
+  name: z.string().trim().min(1).max(80),
+  description: z.string().trim().max(500).optional(),
 });
 
-export const updateCategorySchema = z.object({
-
-    name : z.string().min(1, 'Category name is required'),
-    description: z.string().optional(),
-
-});
+export const updateCategorySchema = createCategorySchema.partial().refine((value) => Object.keys(value).length > 0);
 
 export const createSupplierSchema = z.object({
-    name: z.string().min(1, 'Supplier name is required'),
-    contactPerson: z.string().optional(),
-    phone : z.string()
-    .regex(/07\d{8}$/, 'Phone must be exact 10 digit starting with 07')
-    .optional(),
-    email: z.string().email('Invalid email format').optional(),
-    address: z.string().optional(),
+  name: z.string().trim().min(1).max(100),
+  contactPerson: z.string().trim().max(100).optional(),
+  phone: z.string().trim().max(30).optional(),
+  email: emailSchema.optional(),
+  address: z.string().trim().max(300).optional(),
 });
 
-export const updateSupplierSchema = z.object({
-
-    name: z.string().min(1, 'Supplier name is required'),
-    contactPerson: z.string().optional(),
-    phone : z.string()
-    .regex(/07\d{8}$/, 'Phone must be exact 10 digit starting with 07')
-    .optional(),
-    email:z.string().email('Invalid email format'),
-    address: z.string().optional(),
-});
+export const updateSupplierSchema = createSupplierSchema.partial().refine((value) => Object.keys(value).length > 0);
 
 export const createProductSchema = z.object({
-    SKU: z.string().min(2, 'SKU is required'),
-    name: z.string().min(1, 'Product name is required '),
-    description: z.string().optional(),
-    categoryId: z.coerce.number().optional(),
-    supplierId: z.coerce.number().int().optional().optional().nullable(),
-    unitPrice: z.coerce.number().positive('Unit price must be positive'),
-    sellingPrice : z.coerce.number().positive('Selling price must be positive'),
-    minimumStock: z.coerce.number().int().min(0, 'Minimum stock can not be negative').optional().default(0),
-    currentStock:z.coerce.number().min(0).optional(),
-
-
+  SKU: z.string().trim().min(2).max(80),
+  name: z.string().trim().min(1).max(120),
+  description: z.string().trim().max(1000).optional(),
+  categoryId: z.coerce.number().int().positive(),
+  supplierId: z.coerce.number().int().positive().nullable().optional(),
+  unitPrice: z.coerce.number().min(0).finite(),
+  sellingPrice: z.coerce.number().min(0).finite(),
+  minimumStock: z.coerce.number().int().min(0).optional().default(0),
 });
 
 export const updateProductSchema = z.object({
-
-    SKU: z.string().min(2, 'Sku is required'),
-    name: z.string().min(1).optional(),
-    description: z.string().optional(),
-    categoryId: z.coerce.number().int().positive().optional(),
-    supplierId: z.coerce.number().int().positive().optional().nullable(),
-    unitPrice : z.coerce.number().positive().optional(),
-    sellingPrice: z.coerce.number().positive().optional(),
-    minimumStock: z.coerce.number().int().min(0).optional(),
-    currentStock: z.coerce.number().min(0).optional(),
-    status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
-
-});
+  SKU: z.string().trim().min(2).max(80).optional(),
+  name: z.string().trim().min(1).max(120).optional(),
+  description: z.string().trim().max(1000).optional(),
+  categoryId: z.coerce.number().int().positive().optional(),
+  supplierId: z.coerce.number().int().positive().nullable().optional(),
+  unitPrice: z.coerce.number().min(0).finite().optional(),
+  sellingPrice: z.coerce.number().min(0).finite().optional(),
+  minimumStock: z.coerce.number().int().min(0).optional(),
+  status: z.enum(['ACTIVE', 'INACTIVE']).optional(),
+}).refine((value) => Object.keys(value).length > 0);
 
 export const createStockMovementSchema = z.object({
+  productId: z.coerce.number().int().positive(),
+  movementType: z.enum(['STOCK_IN', 'STOCK_OUT', 'ADJUSTMENT', 'RETURN']),
+  quantity: z.coerce.number().int().positive(),
+  reason: z.string().trim().max(500).optional(),
+  reference: z.string().trim().max(120).optional(),
+});
 
-    productId: z.number().int().positive('Valid product ID is required'),
-    movementType: z.enum(['STOCK_IN','STOCK_OUT', 'ADJUSTMENT', 'RETURN']),
-    quantity: z.number().int().positive('Quantity must be greater than zero'),
-
-    reason: z.string().optional(),
-    reference: z.string().optional(),
-
+export const createUserSchema = z.object({
+  name: z.string().trim().min(2).max(80),
+  email: emailSchema,
+  password: passwordSchema,
+  role: z.enum(['ADMIN', 'STAFF']).default('STAFF'),
 });

@@ -1,180 +1,34 @@
-import { describe, it, expect, beforeAll } from 'vitest';
-import request from 'supertest';
-import { app } from '../src/index';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createTestWorkspace, deleteTestWorkspace } from './helpers/workspace.js';
 
-let adminToken: string;
-let staffToken: string;
+const databaseAvailable = Boolean(process.env.DATABASE_URL);
 
-beforeAll(async () => {
-    // Login as Admin
-    const adminRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-            email: 'admin@inventory.com',
-            password: 'Admin@1nv',
-        });
-    adminToken = adminRes.body.token;
+describe.skipIf(!databaseAvailable)('workspace team management', () => {
+  let first: Awaited<ReturnType<typeof createTestWorkspace>>;
+  let second: Awaited<ReturnType<typeof createTestWorkspace>>;
 
-    // Login as Staff
-    const staffRes = await request(app)
-        .post('/api/auth/login')
-        .send({
-            email: 'staff@inventory.com',
-            password: 'Staff@1nv',
-        });
-    staffToken = staffRes.body.token;
-});
+  beforeAll(async () => {
+    first = await createTestWorkspace();
+    second = await createTestWorkspace();
+  });
 
-describe('Users API - Admin Only', () => {
-    describe('GET /api/users', () => {
-        it('should return all users when authenticated as Admin', async () => {
-            const response = await request(app)
-                .get('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`);
+  afterAll(async () => {
+    if (first) await deleteTestWorkspace(first.shopId);
+    if (second) await deleteTestWorkspace(second.shopId);
+  });
 
-            expect(response.status).toBe(200);
-            expect(response.body.success).toBe(true);
-            expect(Array.isArray(response.body.data)).toBe(true);
-            expect(response.body.data.length).toBeGreaterThan(0);
-        });
+  it('creates a staff account scoped to the current shop and never returns a password', async () => {
+    const email = `staff-${Date.now()}@example.test`;
+    const response = await first.agent.post('/api/users').send({ name: 'Inventory Staff', email, password: 'StaffPass123!', role: 'STAFF' });
+    expect(response.status).toBe(201);
+    expect(response.body.data.email).toBe(email);
+    expect(response.body.data.password).toBeUndefined();
+    expect((await first.agent.get('/api/users')).body.data).toHaveLength(2);
+    expect((await second.agent.get('/api/users')).body.data).toHaveLength(1);
+  });
 
-        it('should return 403 when authenticated as Staff', async () => {
-            const response = await request(app)
-                .get('/api/users')
-                .set('Authorization', `Bearer ${staffToken}`);
-
-            expect(response.status).toBe(403);
-            expect(response.body.message).toBe('Admin access required');
-        });
-
-        it('should return 401 when no token provided', async () => {
-            const response = await request(app)
-                .get('/api/users');
-
-            expect(response.status).toBe(401);
-        });
-    });
-
-    describe('POST /api/users', () => {
-        const uniqueEmail = `testuser_${Date.now()}@example.com`;
-
-        it('should create a new Staff user when authenticated as Admin', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Test Staff User',
-                    email: uniqueEmail,
-                    password: 'Password123!',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(201);
-            expect(response.body.success).toBe(true);
-            expect(response.body.data.email).toBe(uniqueEmail);
-            expect(response.body.data.role).toBe('STAFF');
-        });
-
-        it('should create a new Admin user when authenticated as Admin', async () => {
-            const adminUniqueEmail = `adminuser_${Date.now()}@example.com`;
-            
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Test Admin User',
-                    email: adminUniqueEmail,
-                    password: 'Admin@123!',
-                    role: 'ADMIN',
-                });
-
-            expect(response.status).toBe(201);
-            expect(response.body.success).toBe(true);
-            expect(response.body.data.role).toBe('ADMIN');
-        });
-
-        it('should return 400 when email already exists', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Duplicate User',
-                    email: 'admin@inventory.com', 
-                    password: 'Password123!',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(400);
-            expect(response.body.message).toBe('User already exists');
-        });
-
-        it('should return 400 when name is missing', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    email: `missingname_${Date.now()}@example.com`,
-                    password: 'Password123!',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(500);
-        });
-
-        it('should return 400 when email is invalid', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Invalid Email User',
-                    email: 'notanemail',
-                    password: 'Password123!',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(400);
-        });
-
-        it('should return 400 when password is too short', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${adminToken}`)
-                .send({
-                    name: 'Weak Password User',
-                    email: `weak_${Date.now()}@example.com`,
-                    password: '123',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(201);
-        });
-
-        it('should return 403 when authenticated as Staff', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .set('Authorization', `Bearer ${staffToken}`)
-                .send({
-                    name: 'Staff Trying to Create',
-                    email: `staffcreate_${Date.now()}@example.com`,
-                    password: 'Password123!',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(403);
-            expect(response.body.message).toBe('Admin access required');
-        });
-
-        it('should return 401 when no token provided', async () => {
-            const response = await request(app)
-                .post('/api/users')
-                .send({
-                    name: 'No Token User',
-                    email: `notoken_${Date.now()}@example.com`,
-                    password: 'Password123!',
-                    role: 'STAFF',
-                });
-
-            expect(response.status).toBe(401);
-        });
-    });
+  it('does not allow an administrator to remove their own account', async () => {
+    const response = await first.agent.delete(`/api/users/${(await first.agent.get('/api/auth/me')).body.user.id}`);
+    expect(response.status).toBe(400);
+  });
 });

@@ -1,18 +1,16 @@
-import {Router} from 'express';
-import {ProductController} from '../controllers/product.controller.js';
-import { authenticateToken } from '../middlewares/auth.middleware.js';
-import {upload} from '../middlewares/upload.middleware.js'
+import { Router } from 'express';
+import { ProductController } from '../controllers/product.controller.js';
+import { requireAdmin } from '../middlewares/auth.middleware.js';
+import { upload } from '../middlewares/upload.middleware.js';
 
-const router =  Router();
-const productController = new ProductController();
+const router = Router();
+const controller = new ProductController();
 
+router.get('/', controller.getAll);
+router.get('/:id', controller.getOne);
+router.post('/', requireAdmin, upload.single('image'), controller.create);
+router.put('/:id', requireAdmin, upload.single('image'), controller.update);
+router.patch('/:id/deactivate', requireAdmin, controller.deactivate);
+router.patch('/:id/activate', requireAdmin, controller.activate);
 
-router.post('/', upload.single('image'), productController.create);
-router.get('/', productController.getAll);
-router.get('/:id', productController.getOne);
-//router.put('/:id', productController.update);
-//router.patch('/:id/deactivate',productController.deactivate);
-router.patch('/:id/deactivate', authenticateToken, productController.deactivate);
-router.patch('/:id/activate', authenticateToken, productController.activate);
-router.put('/:id', upload.single('image'), productController.update);
 export default router;

@@ -1,105 +1,41 @@
-import{ describe, it, expect, beforeAll} from 'vitest';
-import request from 'supertest';
-import {app} from '../src/index';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { createTestWorkspace, deleteTestWorkspace } from './helpers/workspace.js';
 
-let adminToken: string;
-let testProductId : number;
+const databaseAvailable = Boolean(process.env.DATABASE_URL);
 
-beforeAll(async ()=>{
+describe.skipIf(!databaseAvailable)('tenant-safe stock movements', () => {
+  let workspace: Awaited<ReturnType<typeof createTestWorkspace>>;
+  let productId: number;
 
-
-    const loginRes = await request(app)
-    .post('/api/auth/login')
-    .send({
-        email: 'admin@inventory.com',
-        password:'Admin@1nv',
+  beforeAll(async () => {
+    workspace = await createTestWorkspace();
+    const category = await workspace.agent.post('/api/categories').send({ name: 'Inventory' });
+    const product = await workspace.agent.post('/api/products').send({
+      SKU: `MOV-${Date.now()}`, name: 'Test item', categoryId: category.body.data.id, unitPrice: 50, sellingPrice: 80, minimumStock: 4,
     });
+    productId = product.body.data.id;
+  });
 
-    adminToken = loginRes.body.token;
+  afterAll(async () => { if (workspace) await deleteTestWorkspace(workspace.shopId); });
 
-    const categoriesRes= await request(app)
-    .get('/api/categories')
-    .set('Authorization', `Bearer ${adminToken}`);
+  it('records stock in, stock out, and prevents a negative quantity', async () => {
+    const inbound = await workspace.agent.post('/api/stock-movements').send({ productId, movementType: 'STOCK_IN', quantity: 50, reason: 'Opening count' });
+    expect(inbound.status).toBe(201);
+    expect(inbound.body.data.newStock).toBe(50);
 
-    const categoryId = categoriesRes.body.data[0]?.id || 1 ;
+    const outbound = await workspace.agent.post('/api/stock-movements').send({ productId, movementType: 'STOCK_OUT', quantity: 10, reason: 'Sale' });
+    expect(outbound.status).toBe(201);
+    expect(outbound.body.data.newStock).toBe(40);
 
-    const productRes =await request(app)
-    .post('/api/products')
-    .set('Authorization', `Bearer ${adminToken}`)
-    .send({
-        SKU:`TEST-STOCK-${Date.now()}`,
-        name:'Stock Test Product',
-         description: 'Test product for stock movement',
-        categoryId: categoryId,
-        unitPrice:10,
-        sellingPrice:20,
-   
-    });
+    const rejected = await workspace.agent.post('/api/stock-movements').send({ productId, movementType: 'STOCK_OUT', quantity: 100 });
+    expect(rejected.status).toBe(409);
+    expect((await workspace.agent.get(`/api/products/${productId}`)).body.data.currentStock).toBe(40);
+  });
 
-    testProductId = productRes.body.data.id;
-});
-
-
-describe ('Stock Movement Business Rules', ()=>{
-
-    it('should increase stock with STOCK_IN', async ()=>{
-
-        const response = await request(app)
-        .post('/api/stock-movements')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-            productId:testProductId,
-            movementType: 'STOCK_IN',
-            quantity:50,
-            reason:'Initial stock',
-        });
-
-        expect(response.status).toBe(201);
-        expect(response.body.data.previousStock).toBe(0);
-        expect(response.body.data.newStock).toBe(50);
-    });
-
-
-
-    it('should decrease stock with STOCK_OUT', async ()=>{
-        const response = await request(app)
-        .post('/api/stock-movements')
-        .set('Authorization' , `Bearer ${adminToken}`)
-        .send({
-
-            productId:testProductId,
-            movementType:'STOCK_OUT',
-            quantity:10,
-            reason:'Customer purchase',
-        });
-
-        expect(response.status).toBe(201);
-        expect(response.body.data.previousStock).toBe(50);
-        expect(response.body.data.newStock).toBe(40);
-    });
-
-
-    it('should FAIL STOCK_OUT when quantity execeeds available stock', async ()=>{
-        const response = await request(app)
-        .post('/api/stock-movements')
-        .set('Authorization', `Bearer ${adminToken}`)
-        .send({
-            productId: testProductId,
-            movementType:'STOCK_OUT',
-            quantity:100,
-            reason: 'should fail...'
-        });
-
-        expect (response.status).toBe(400);
-        expect( response.body.message).toContain('Insufficient stock');
-    });
-
-    it('should verify stock unchanged after failed STOCK_OUT', async ()=>{
-
-        const response = await request (app)
-        .get(`/api/products/${testProductId}`)
-        .set('Authorization', `Bearer ${adminToken}`);
-
-        expect(response.body.data.currentStock).toBe(40);
-    });
+  it('rejects a product id owned by another shop', async () => {
+    const other = await createTestWorkspace();
+    const response = await other.agent.post('/api/stock-movements').send({ productId, movementType: 'STOCK_IN', quantity: 5 });
+    expect(response.status).toBe(404);
+    await deleteTestWorkspace(other.shopId);
+  });
 });

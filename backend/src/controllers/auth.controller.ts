@@ -1,123 +1,118 @@
-import type {Request , Response} from 'express';
+import type { Request, Response } from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
-import {prisma} from '../index.js';
-import { registerSchema, loginSchema} from '../utils/validation.js'
+import { randomBytes } from 'node:crypto';
+import { prisma } from '../db.js';
+import { loginSchema, registerSchema } from '../utils/validation.js';
+import type { SessionUser } from '../middlewares/auth.middleware.js';
 
+const sessionCookie = 'ims_session';
+const sessionDuration = 12 * 60 * 60 * 1000;
+
+function issueSession(user: SessionUser, res: Response) {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) throw new Error('JWT_SECRET is not configured');
+
+  const token = jwt.sign(user, secret, { expiresIn: '12h' });
+  res.cookie(sessionCookie, token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: sessionDuration,
+  });
+}
+
+function publicUser(user: { id: number; email: string; name: string; role: string; shopId: number; shop: { name: string; currency: string } }) {
+  return {
+    id: user.id,
+    email: user.email,
+    name: user.name,
+    role: user.role,
+    shopId: user.shopId,
+    shopName: user.shop.name,
+    currency: user.shop.currency,
+  };
+}
 
 export class AuthController {
-    async login (req: Request, res: Response) {
-        try{
+  async login(req: Request, res: Response) {
+    const validation = loginSchema.safeParse(req.body);
+    if (!validation.success) return res.status(400).json({ message: 'Check your email and password.' });
 
-            const validation = loginSchema.safeParse(req.body);
+    try {
+      const user = await prisma.user.findUnique({
+        where: { email: validation.data.email },
+        include: { shop: { select: { name: true, currency: true } } },
+      });
+      if (!user || !(await bcrypt.compare(validation.data.password, user.password))) {
+        return res.status(401).json({ message: 'Invalid email or password.' });
+      }
 
-            if(!validation.success){
-                return res.status(400).json({
-
-                    success: false,
-                    error: validation.error
-                });
-            }
-
-
-             console.log('Full request body:', req.body);
-            const {email, password} = validation.data;
-            const user = await prisma.user.findUnique({where: {email}
-            
-            });
-            
-            if (!user){
-                return res.status (401).json({success:false, message:'Invalid Credentials'});
-
-            }
-
-            const isValidPassword = await bcrypt.compare(password, user.password);
-
-
-            if (!isValidPassword){
-                return res.status(401).json({success: false, message:'Invalid Password' });
-            }
-
-
-            const token = jwt.sign({id:user.id, email:user.email, role:user.role},
-                process.env.JWT_SECRET as string, {expiresIn:'7d'}
-            );
-
-            res.json({
-                success:true,
-                message:'Login successful',
-                token,
-                user: {
-                    id:user.id,
-                    email:user.email,
-                    name:user.name,
-                    role:user.role
-                }
-            });
-        }catch(error){
-            console.error('Error details', error);
-           
-            res.status(500).json({message:'Server error' });
-            
-        }    
+      issueSession({ id: user.id, email: user.email, role: user.role, shopId: user.shopId }, res);
+      return res.json({ success: true, user: publicUser(user) });
+    } catch (error) {
+      console.error('Login failed:', error instanceof Error ? error.message : 'Unknown error');
+      return res.status(500).json({ message: 'Unable to sign in right now.' });
     }
+  }
 
+  async register(req: Request, res: Response) {
+    const validation = registerSchema.safeParse(req.body);
+    if (!validation.success) return res.status(400).json({ message: 'Check the details and try again.', errors: validation.error.flatten() });
 
-    async register (req: Request, res: Response) {
-        try{
+    try {
+      const { name, email, password, shopName } = validation.data;
+      const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      if (existing) return res.status(409).json({ message: 'An account with this email already exists.' });
 
-            const validation = registerSchema.safeParse(req.body);
+      const passwordHash = await bcrypt.hash(password, 12);
+      const baseSlug = shopName.toLowerCase().normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 48) || 'shop';
+      const user = await prisma.$transaction(async (transaction) => {
+        const shop = await transaction.shop.create({
+          data: {
+            name: shopName,
+            slug: `${baseSlug}-${randomBytes(3).toString('hex')}`,
+            currency: 'RWF',
+            timezone: 'Africa/Kigali',
+          },
+        });
+        return transaction.user.create({
+          data: { name, email, password: passwordHash, role: 'ADMIN', shopId: shop.id },
+          include: { shop: { select: { name: true, currency: true } } },
+        });
+      });
 
-            if(!validation.success){
-                return res.status(400).json({
-                    success:false,
-                    error:validation.error
-                });
-            }
-
-
-
-
-
-            console.log('Register request body:', req.body);
-            const {name, email, password} = validation.data;
-            const existingUser = await prisma.user.findUnique({where: {email}});
-
-            if (existingUser){
-                return res.status(400).json({message:'Email already in use' });
-            }
-
-
-            const hashedPassword = await bcrypt.hash(password, 10);
-
-            const newUser = await prisma.user.create({
-                data: {
-                    name,
-                    email,
-                    password: hashedPassword,
-                    role:'STAFF'
-                }
-            });
-
-
-            const token = jwt.sign({id:newUser.id, email:newUser.email, role:newUser.role},
-                process.env.JWT_SECRET as string, {expiresIn:'7d'}
-            );
-            res.status(201).json({
-                success:true,
-                message:'Registration successful',
-                token,
-                user: {
-                    id: newUser.id,
-                    email: newUser.email,
-                    name: newUser.name,
-                    role: newUser.role
-                }
-            });
-        }catch(error){
-            console.error('Register error details', error);
-            res.status(500).json({message:'Server error' });
-        }
+      issueSession({ id: user.id, email: user.email, role: user.role, shopId: user.shopId }, res);
+      return res.status(201).json({ success: true, user: publicUser(user) });
+    } catch (error) {
+      console.error('Registration failed:', error instanceof Error ? error.message : 'Unknown error');
+      return res.status(500).json({ message: 'Unable to create your workspace right now.' });
     }
+  }
 
+  async me(req: Request, res: Response) {
+    if (!req.user) return res.status(401).json({ message: 'Authentication required' });
+    try {
+      const user = await prisma.user.findFirst({
+        where: { id: req.user.id, shopId: req.user.shopId },
+        include: { shop: { select: { name: true, currency: true } } },
+      });
+      if (!user) return res.status(401).json({ message: 'Session is no longer valid' });
+      return res.json({ success: true, user: publicUser(user) });
+    } catch (error) {
+      console.error('Session lookup failed:', error instanceof Error ? error.message : 'Unknown error');
+      return res.status(500).json({ message: 'Unable to load your session.' });
+    }
+  }
+
+  logout(_req: Request, res: Response) {
+    res.clearCookie(sessionCookie, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+    });
+    return res.status(204).end();
+  }
 }

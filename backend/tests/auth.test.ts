@@ -1,173 +1,52 @@
-import {describe, it, expect} from 'vitest';
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import request from 'supertest';
-import {app} from '../src/index';
+import { app } from '../src/index.js';
+import { createTestWorkspace, deleteTestWorkspace } from './helpers/workspace.js';
 
-describe ('Authentication Tests' , () => {
+const databaseAvailable = Boolean(process.env.DATABASE_URL);
 
-    describe ('Login Tests', ()=>{
+describe.skipIf(!databaseAvailable)('workspace authentication', () => {
+  let workspace: Awaited<ReturnType<typeof createTestWorkspace>>;
 
-        it('should login with admin credentials', async ()=>{
-            const response =await request(app)
-            .post('/api/auth/login')
-            .send({
-                email:'admin@inventory.com',
-                password:'Admin@1nv',
-            });
-            expect(response.status).toBe(200);
-            expect(response.body.success).toBe(true);
-            expect(response.body.token).toBeDefined();
-            expect(response.body.user.role).toBe('ADMIN');
-        });
+  beforeAll(async () => { workspace = await createTestWorkspace(); });
+  afterAll(async () => { if (workspace) await deleteTestWorkspace(workspace.shopId); });
 
-        
-        it('should login with staff credentials', async ()=>{
-            const response =await request(app)
-            .post('/api/auth/login')
-            .send({
-                email:'staff@inventory.com',
-                password:'Staff@1nv',
-            });
-            expect(response.status).toBe(200);
-            expect(response.body.success).toBe(true);
-            expect(response.body.token).toBeDefined();
-            expect(response.body.user.role).toBe('STAFF');
-        });
-
-        it('should reject login with non-existent password', async ()=>{
-
-            const response = await request (app)
-            .post('/api/auth/login')
-            .send({
-                email:'admin@inventory.com',
-                password:'wrongpassword',
-            });
-
-            expect(response.status).toBe(401);
-            expect(response.body.message).toBe('Invalid Password');
-
-        });
-
-        it('sould reject login with non-existent email',async ()=>{
-
-            const response = await request(app)
-            .post('/api/auth/login')
-            .send({
-                email:'ntibaho@inventory.com',
-                password:'Admin@1nv',
-            });
-            expect(response.status).toBe(401);
-            expect(response.body.message).toBe('Invalid Credentials');
-        });
-
-        it ('should reject login with invalid email format', async ()=>{
-
-
-            const response = await request(app)
-            .post('/api/auth/login')
-            .send({
-                email:'notanemail',
-                password:'Admin@1nv',
-            });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-        });
-
-
+  it('creates an isolated workspace with an administrator session cookie', async () => {
+    const response = await request(app).post('/api/auth/register').send({
+      name: 'Another Owner',
+      shopName: 'Another Store',
+      email: `owner-${Date.now()}@example.test`,
+      password: 'SecurePass123!',
     });
 
+    expect(response.status).toBe(201);
+    expect(response.body.user.role).toBe('ADMIN');
+    expect(response.body.user.currency).toBe('RWF');
+    expect(response.body.token).toBeUndefined();
+    expect(response.headers['set-cookie'][0]).toContain('HttpOnly');
+  });
 
+  it('logs in using the HttpOnly cookie and returns only workspace profile data', async () => {
+    const response = await request(app).post('/api/auth/login').send({ email: workspace.email, password: workspace.password });
+    expect(response.status).toBe(200);
+    expect(response.headers['set-cookie'][0]).toContain('ims_session=');
+    expect(response.body.user.shopId).toBe(workspace.shopId);
+    expect(response.body.user.password).toBeUndefined();
+    expect(response.body.token).toBeUndefined();
+  });
 
-    describe('Register Tests', ()=>{
+  it('rejects invalid credentials without disclosing which value was wrong', async () => {
+    const response = await request(app).post('/api/auth/login').send({ email: workspace.email, password: 'IncorrectPass123!' });
+    expect(response.status).toBe(401);
+    expect(response.body.message).toBe('Invalid email or password.');
+  });
 
-
-        it('should register a new user with valid data', async ()=>{
-            const uniqueEmail = `inventory_${Date.now()}@inventory.com`;
-
-            const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-                email:uniqueEmail,
-                password: 'Password123!',
-                name:'Test Inventory',
-            }) ;
-            expect(response.status).toBe(201);
-            expect(response.body.success).toBe(true);
-            expect(response.body.token).toBeDefined();
-            expect(response.body.user.email).toBe(uniqueEmail);
-            expect(response.body.user.role).toBe('STAFF');
-        });
-
-
-        it('should reject registration with existing email format', async ()=>{
-
-            const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-                email:'notemailinventory.com',
-                password:'Password123!',
-                name: 'Test Inventory',
-            });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-        });
-
-        it('should reject registration with weak password ', async ()=>{
-            const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-                email:`inventoryweak_${Date.now()}@inventory.com`,
-                password:'123',
-                name:'Test inventory',
-            });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-        });
-
-        it('should reject registration with password missing uppercase', async ()=>{
-
-            const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-                email:`inventorynoupper_${Date.now()}@inventory.com`,
-                password:'password123!',
-                name:'Test inventory',
-            });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false);
-        });
-
-        it('should reject registration with password missing a special character', async ()=>{
-
-            const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-                email:`inventory_${Date.now()}@inventory.com`,
-                password:'Password123',
-                name:'Test inventory',
-            });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false)
-        });
-
-        it('should reject registration with name toshort', async ()=>{
-
-            const response = await request(app)
-            .post('/api/auth/register')
-            .send({
-                email:`shortname_${Date.now()}@inventory.com`,
-                password:'Password123!',
-                name:'A',
-
-            });
-
-            expect(response.status).toBe(400);
-            expect(response.body.success).toBe(false); 
-
-        });
+  it('requires a shop name for self-service registration', async () => {
+    const response = await request(app).post('/api/auth/register').send({
+      name: 'No Shop',
+      email: `no-shop-${Date.now()}@example.test`,
+      password: 'SecurePass123!',
     });
+    expect(response.status).toBe(400);
+  });
 });

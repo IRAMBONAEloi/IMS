@@ -1,14 +1,14 @@
-import {Router } from 'express';
+import { Router } from 'express';
 import { SupplierController } from '../controllers/supplier.controller.js';
-
+import { requireAdmin } from '../middlewares/auth.middleware.js';
 
 const router = Router();
-const supplierControllerInstance = new SupplierController();
+const controller = new SupplierController();
 
-router.post('/', supplierControllerInstance.create);
-router.get('/', supplierControllerInstance.getAll);
-router.get('/:id', supplierControllerInstance.getOne);
-router.put('/:id', supplierControllerInstance.update);
-router.delete('/:id', supplierControllerInstance.delete);
+router.get('/', controller.getAll);
+router.get('/:id', controller.getOne);
+router.post('/', requireAdmin, controller.create);
+router.put('/:id', requireAdmin, controller.update);
+router.delete('/:id', requireAdmin, controller.delete);
 
 export default router;

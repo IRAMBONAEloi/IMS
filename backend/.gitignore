@@ -7,3 +7,5 @@ coverage
 logs                
 uploads/*
 !uploads/.gitkeep
+src/uploads/*
+!src/uploads/.gitkeep

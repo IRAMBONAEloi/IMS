@@ -1,55 +1,57 @@
 import api from './api';
 
-export interface LoginData {
-    email: string;
-    password: string;
+export interface AuthUser {
+  id: number;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'STAFF';
+  shopName: string;
+  currency: string;
 }
 
-export interface RegisterData {
-    email: string;
-    password: string;
-    name: string;
-}
-
-export interface User {
-    id: number;
-    email: string;
-    name: string;
-    role: string;
-}
-
-export interface LoginResponse {
-    success: boolean;
-    token: string;
-    user: User;
+interface AuthResponse {
+  success: boolean;
+  user: AuthUser;
 }
 
 export const authService = {
-    async login(data: LoginData): Promise<LoginResponse> {
-        const response = await api.post('/auth/login', data);
-        return response.data;
-    },
+  async login(email: string, password: string) {
+    const response = await api.post<AuthResponse>('/auth/login', { email, password });
+    this.setUser(response.data.user);
+    return response.data;
+  },
 
-    async register(data: RegisterData): Promise<LoginResponse> {
-        const response = await api.post('/auth/register', data);
-        return response.data;
-    },
+  async register(name: string, email: string, password: string, shopName: string) {
+    const response = await api.post<AuthResponse>('/auth/register', { name, email, password, shopName });
+    this.setUser(response.data.user);
+    return response.data;
+  },
 
-    logout(): void {
-        localStorage.removeItem('token');
-        localStorage.removeItem('user');
-    },
+  getUser(): AuthUser | null {
+    try {
+      const value = sessionStorage.getItem('ims-user');
+      return value ? (JSON.parse(value) as AuthUser) : null;
+    } catch {
+      sessionStorage.removeItem('ims-user');
+      return null;
+    }
+  },
 
-    getToken(): string | null {
-        return localStorage.getItem('token');
-    },
+  setUser(user: AuthUser | null) {
+    localStorage.removeItem('token');
+    if (user) sessionStorage.setItem('ims-user', JSON.stringify(user));
+    else sessionStorage.removeItem('ims-user');
+  },
 
-    getUser(): User | null {
-        const user = localStorage.getItem('user');
-        return user ? JSON.parse(user) : null;
-    },
+  clearUser() {
+    this.setUser(null);
+  },
 
-    isAuthenticated(): boolean {
-        return !!this.getToken();
-    },
+  async logout() {
+    try {
+      await api.post('/auth/logout');
+    } finally {
+      this.clearUser();
+    }
+  },
 };

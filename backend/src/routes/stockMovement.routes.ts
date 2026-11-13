@@ -1,6 +1,5 @@
 import {Router} from 'express';
 import {StockMovementController} from '../controllers/stockMovement.controller.js';
-import{authenticateToken} from '../middlewares/auth.middleware.js';
 
 
 const router = Router();
