@@ -4,8 +4,8 @@ import api from '../../services/api';
 import { authService } from '../../services/auth.service';
 import { 
     LayoutDashboard, Package, RefreshCw, ChevronLeft, ChevronRight,
-    TrendingUp, TrendingDown, AlertCircle, CheckCircle, DollarSign, 
-    Box, Layers, ShoppingBag, LogOut, User, ArrowRight
+    AlertCircle, CheckCircle,  
+    Box, Layers, ShoppingBag, ArrowRight
 } from 'lucide-react';
 
 interface DashboardData {
@@ -24,7 +24,7 @@ export default function StaffDashboard() {
     const [loading, setLoading] = useState(true);
     const [sidebarOpen, setSidebarOpen] = useState(() => {
         const saved = localStorage.getItem('sidebarOpen');
-        return saved !== null ? saved === 'true' : true;
+               return saved !== null ? saved === 'true' : true;
     });
     const user = authService.getUser();
 
@@ -233,14 +233,14 @@ export default function StaffDashboard() {
                     })}
                 </div>
 
-                    {data?.lowStockProducts > 0 && (
+                    {(data?.lowStockProducts ?? 0 )> 0 && (
                         <div className=" mx-6 mb-8 bg-amber-50 border border-amber-200 rounded-xl p-5">
                             <div className="flex items-center gap-3">
                                 <AlertCircle size={24} className="text-amber-600" />
                                 <div>
                                     <h3 className="font-semibold text-amber-800">Low Stock Alert</h3>
                                     <p className="text-sm text-amber-700">
-                                        {data.lowStockProducts} product{data.lowStockProducts !== 1 ? 's are' : ' is'} running low on stock. 
+                                        {(data?.lowStockProducts ?? 0 )} product{(data?.lowStockProducts ?? 0) !== 1 ? 's are' : ' is'} running low on stock. 
                                         Please review and restock soon.
                                     </p>
                                 </div>

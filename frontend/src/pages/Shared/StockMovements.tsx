@@ -42,7 +42,7 @@ export default function StockMovements() {
     const [typeFilter, setTypeFilter] = useState('all');
     const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const [submitting, setSubmitting] = useState(false);
+   // const [submitting, setSubmitting] = useState(false);
     
     const user = authService.getUser();
     const isAdmin = user?.role === 'ADMIN';
@@ -118,7 +118,11 @@ export default function StockMovements() {
         }
 
         const product = products.find(p => p.id.toString() === selectedProduct);
-        if (movementType === 'OUT' && product && quantity > product.currentStock) {
+        if (!product) {
+            showToast('Selected product not found', 'error');
+            return;
+        }
+        if (movementType === 'OUT' && quantity > product.currentStock) {
             showToast(`Insufficient stock! Only ${product.currentStock} units available`, 'error');
             return;
         }
